@@ -1,6 +1,6 @@
-{ stdenv, fetchFromGitHub, autoreconfHook
-, asciidoctor, pkgconfig, xmlto, docbook_xsl, docbook_xml_dtd_45, libxslt
-, json_c, kmod, which, utillinux, udev, keyutils
+{ lib, stdenv, fetchFromGitHub, autoreconfHook
+, asciidoctor, pkg-config, xmlto, docbook_xsl, docbook_xml_dtd_45, libxslt
+, json_c, kmod, which, util-linux, udev, keyutils
 }:
 
 stdenv.mkDerivation rec {
@@ -17,12 +17,12 @@ stdenv.mkDerivation rec {
   outputs = [ "out" "lib" "man" "dev" ];
 
   nativeBuildInputs =
-    [ autoreconfHook asciidoctor pkgconfig xmlto docbook_xml_dtd_45 docbook_xsl libxslt
+    [ autoreconfHook asciidoctor pkg-config xmlto docbook_xml_dtd_45 docbook_xsl libxslt
       which
     ];
 
   buildInputs =
-    [ json_c kmod utillinux udev keyutils
+    [ json_c kmod util-linux udev keyutils
     ];
 
   configureFlags =
@@ -39,7 +39,7 @@ stdenv.mkDerivation rec {
     echo "m4_define([GIT_VERSION], [${version}])" > version.m4;
   '';
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     description = "Tools for managing the Linux Non-Volatile Memory Device sub-system";
     homepage    = "https://github.com/pmem/ndctl";
     license     = licenses.lgpl21;

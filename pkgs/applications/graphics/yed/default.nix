@@ -1,4 +1,4 @@
-{ stdenv, fetchzip, makeWrapper, unzip, jre, wrapGAppsHook }:
+{ lib, stdenv, fetchzip, makeWrapper, unzip, jre, wrapGAppsHook }:
 
 stdenv.mkDerivation rec {
   pname = "yEd";
@@ -11,7 +11,7 @@ stdenv.mkDerivation rec {
 
   nativeBuildInputs = [ makeWrapper unzip wrapGAppsHook ];
   # For wrapGAppsHook setup hook
-  buildInputs = [ jre.gtk3 ];
+  buildInputs = [ (jre.gtk3 or null) ];
 
   dontConfigure = true;
   dontBuild = true;
@@ -29,7 +29,7 @@ stdenv.mkDerivation rec {
   '';
   dontWrapGApps = true;
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     license = licenses.unfree;
     homepage = "https://www.yworks.com/products/yed";
     description = "A powerful desktop application that can be used to quickly and effectively generate high-quality diagrams";

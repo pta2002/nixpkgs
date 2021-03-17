@@ -1,13 +1,13 @@
 { stdenv, lib, fetchurl, buildRubyGem, bundlerEnv, ruby, libarchive
-, libguestfs, qemu, writeText, withLibvirt ? stdenv.isLinux, fetchpatch
+, libguestfs, qemu, writeText, withLibvirt ? stdenv.isLinux
 }:
 
 let
   # NOTE: bumping the version and updating the hash is insufficient;
   # you must use bundix to generate a new gemset.nix in the Vagrant source.
-  version = "2.2.13";
+  version = "2.2.14";
   url = "https://github.com/hashicorp/vagrant/archive/v${version}.tar.gz";
-  sha256 = "sha256-NN+8t08yycINbtxOjhOWU96nJ0fZKDAopEr3WyAeG8U=";
+  sha256 = "sha256-vsb7RFjT9l4N6BzwIvVLcRtA4n/c8jk20B6RUMkyhJs=";
 
   deps = bundlerEnv rec {
     name = "${pname}-${version}";
@@ -34,7 +34,7 @@ let
       for gem in "$out"/lib/ruby/gems/*/gems/*; do
         cp -a "$gem/" "$gem.new"
         rm "$gem"
-        # needed on macOS, otherwise the mv yields permission denied 
+        # needed on macOS, otherwise the mv yields permission denied
         chmod +w "$gem.new"
         mv "$gem.new" "$gem"
       done

@@ -1,7 +1,7 @@
 { stdenv, lib, fetchurl, extra-cmake-modules
 , qtbase, kio
 , libatasmart, parted
-, utillinux }:
+, util-linux }:
 
 stdenv.mkDerivation rec {
   pname = "kpmcore";
@@ -19,14 +19,14 @@ stdenv.mkDerivation rec {
 
     kio
 
-    utillinux # needs blkid (note that this is not provided by utillinux-compat)
+    util-linux # needs blkid (note that this is not provided by util-linux-compat)
   ];
 
   nativeBuildInputs = [ extra-cmake-modules ];
 
-  enableParallelBuilding = true;
+  dontWrapQtApps = true;
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     maintainers = with lib.maintainers; [ peterhoeg ];
     # The build requires at least Qt 5.14:
     broken = lib.versionOlder qtbase.version "5.14";

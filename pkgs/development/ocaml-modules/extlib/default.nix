@@ -1,14 +1,21 @@
-{ stdenv, fetchurl, ocaml, findlib, cppo, minimal ? true }:
+{ stdenv, lib, fetchurl, fetchpatch, ocaml, findlib, cppo, minimal ? true }:
 
-assert stdenv.lib.versionAtLeast (stdenv.lib.getVersion ocaml) "3.11";
+assert lib.versionAtLeast (lib.getVersion ocaml) "3.11";
 
 stdenv.mkDerivation {
-  name = "ocaml${ocaml.version}-extlib-1.7.6";
+  name = "ocaml${ocaml.version}-extlib-1.7.7";
 
   src = fetchurl {
-    url = "http://ygrek.org.ua/p/release/ocaml-extlib/extlib-1.7.6.tar.gz";
-    sha256 = "0wfs20v1yj5apdbj7214wdsr17ayh0qqq7ihidndvc8nmmwfa1dz";
+    url = "http://ygrek.org.ua/p/release/ocaml-extlib/extlib-1.7.7.tar.gz";
+    sha256 = "1sxmzc1mx3kg62j8kbk0dxkx8mkf1rn70h542cjzrziflznap0s1";
   };
+
+  patches = [
+    (fetchpatch {
+      url = "https://github.com/ygrek/ocaml-extlib/pull/55.patch";
+      sha256 = "0mj3xii56rh8j8brdyv5d06rbs6jjjcy4ib9chafkq3f3sbq795p";
+    })
+  ];
 
   buildInputs = [ ocaml findlib cppo ];
 
@@ -22,7 +29,7 @@ stdenv.mkDerivation {
   meta = {
     homepage = "https://github.com/ygrek/ocaml-extlib";
     description = "Enhancements to the OCaml Standard Library modules";
-    license = stdenv.lib.licenses.lgpl21;
+    license = lib.licenses.lgpl21;
     platforms = ocaml.meta.platforms or [];
   };
 }

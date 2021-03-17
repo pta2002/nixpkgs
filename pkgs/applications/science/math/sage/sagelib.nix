@@ -15,6 +15,7 @@
 , ecm
 , flint
 , gd
+, giac
 , givaro
 , glpk
 , gsl
@@ -31,7 +32,6 @@
 , ntl
 , numpy
 , pari
-, pkgconfig
 , pkg-config
 , planarity
 , ppl
@@ -51,6 +51,7 @@
 , libbraiding
 , gmpy2
 , pplpy
+, sqlite
 }:
 
 assert (!blas.isILP64) && (!lapack.isILP64);
@@ -84,7 +85,6 @@ buildPythonPackage rec {
     cypari2
     jinja2
     numpy
-    pkgconfig
     boost
     arb
     brial
@@ -94,6 +94,7 @@ buildPythonPackage rec {
     ecm
     fflas-ffpack
     flint
+    giac
     givaro
     glpk
     gsl
@@ -124,6 +125,7 @@ buildPythonPackage rec {
     libbraiding
     gmpy2
     pplpy
+    sqlite
   ];
 
   buildPhase = ''

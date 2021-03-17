@@ -41,7 +41,11 @@ rustPlatform.buildRustPackage {
     runHook postInstallCheck
   '';
 
-  meta = with stdenv.lib; {
+  passthru.updateScript = ./update.sh;
+
+  patches = [ ./rust_1_49.patch ];
+
+  meta = with lib; {
     description = "An experimental modular compiler frontend for the Rust language";
     homepage = "https://github.com/rust-analyzer/rust-analyzer";
     license = with licenses; [ mit asl20 ];

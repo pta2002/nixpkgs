@@ -39,12 +39,6 @@ let
         (if (versionOlder version "5.31.1") then ./no-sys-dirs-5.29.patch
          else ./no-sys-dirs-5.31.patch)
       ]
-      ++ optional (versionOlder version "5.29.6")
-        # Fix parallel building: https://rt.perl.org/Public/Bug/Display.html?id=132360
-        (fetchurl {
-          url = "https://rt.perl.org/Public/Ticket/Attachment/1502646/807252/0001-Fix-missing-build-dependency-for-pods.patch";
-          sha256 = "1bb4mldfp8kq1scv480wm64n2jdsqa3ar46cjp1mjpby8h5dr2r0";
-        })
       ++ optional stdenv.isSunOS ./ld-shared.patch
       ++ optionals stdenv.isDarwin [ ./cpp-precomp.patch ./sw_vers.patch ]
       ++ optional crossCompiling ./MakeMaker-cross.patch;
@@ -174,11 +168,11 @@ let
       priority = 6; # in `buildEnv' (including the one inside `perl.withPackages') the library files will have priority over files in `perl`
     };
   } // optionalAttrs (stdenv.buildPlatform != stdenv.hostPlatform) rec {
-    crossVersion = "65e06e238ccb949e8399bdebc6d7fd798c34127b"; # Oct 21, 2020
+    crossVersion = "1.3.5"; # Jan 24, 2021
 
     perl-cross-src = fetchurl {
       url = "https://github.com/arsv/perl-cross/archive/${crossVersion}.tar.gz";
-      sha256 = "1rk9kbvkj7cl3bvv6cph20f0hcb6y9ijgcd4rxj7aq98fxzvyhxx";
+      sha256 = "1sa2f8s1hc604g5y98w6m6y5q43s9jiyrpnp4b34zkfx1qs3w6l4";
     };
 
     depsBuildBuild = [ buildPackages.stdenv.cc makeWrapper ];
@@ -206,15 +200,15 @@ in {
   perl532 = common {
     perl = pkgs.perl532;
     buildPerl = buildPackages.perl532;
-    version = "5.32.0";
-    sha256 = "1d6001cjnpxfv79000bx00vmv2nvdz7wrnyas451j908y7hirszg";
+    version = "5.32.1";
+    sha256 = "0b7brakq9xs4vavhg391as50nbhzryc7fy5i65r81bnq3j897dh3";
   };
 
   # the latest Devel version
   perldevel = common {
     perl = pkgs.perldevel;
     buildPerl = buildPackages.perldevel;
-    version = "5.33.3";
-    sha256 = "1k9pyy8d3wx8cpp5ss7hjwf9sxgga5gd0x2nq3vnqblkxfna0jsg";
+    version = "5.33.6";
+    sha256 = "1fx6b2q7wzd0xwy7qkmkvd5bdm09d3zfnynrb6afl9ghd8ww56fv";
   };
 }

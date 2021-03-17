@@ -1,27 +1,17 @@
-{ stdenv, fetchFromGitHub, fetchpatch, coreutils
-, python3Packages, substituteAll }:
+{ lib, fetchFromGitHub, python3Packages }:
 
 python3Packages.buildPythonApplication rec {
   pname = "trash-cli";
-  version = "0.20.11.7";
+  version = "0.20.12.26";
 
   src = fetchFromGitHub {
     owner = "andreafrancia";
     repo = "trash-cli";
     rev = version;
-    sha256 = "0083vagy0jkahb5sw1il7r53ggk45zbjwwjsqd76v7ph3v1awf4v";
+    sha256 = "15iivl9xln1bw1zr2x5zvqyb6aj7mc8hfqi6dniq6xkp5m046ib7";
   };
 
-  patches = [
-    (substituteAll {
-      src = ./nix-paths.patch;
-      df = "${coreutils}/bin/df";
-      libc =
-        if stdenv.hostPlatform.isDarwin
-          then "/usr/lib/libSystem.dylib"
-          else "${stdenv.cc.libc}/lib/libc.so.6";
-    })
-  ];
+  propagatedBuildInputs = [ python3Packages.psutil ];
 
   checkInputs = with python3Packages; [
     nose
@@ -29,7 +19,7 @@ python3Packages.buildPythonApplication rec {
   ];
   checkPhase = "nosetests";
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     homepage = "https://github.com/andreafrancia/trash-cli";
     description = "Command line tool for the desktop trash can";
     maintainers = [ maintainers.rycee ];

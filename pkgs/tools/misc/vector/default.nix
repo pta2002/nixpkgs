@@ -8,6 +8,8 @@
      then [ "jemallocator" "rdkafka" "rdkafka/dynamic_linking" ]
      else [ "leveldb" "leveldb/leveldb-sys-2" "jemallocator" "rdkafka" "rdkafka/dynamic_linking" ])
      ++
+     (lib.optional stdenv.targetPlatform.isUnix "unix")
+     ++
      [ "sinks" "sources" "transforms" ])
 , coreutils
 , CoreServices
@@ -27,7 +29,7 @@ rustPlatform.buildRustPackage rec {
   cargoSha256 = "Y/vDYXWQ65zZ86vTwP4aCZYCMZuqbz6tpfv4uRkFAzc=";
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [ openssl protobuf rdkafka ]
-                ++ stdenv.lib.optional stdenv.isDarwin [ Security libiconv coreutils CoreServices ];
+                ++ lib.optional stdenv.isDarwin [ Security libiconv coreutils CoreServices ];
 
   # needed for internal protobuf c wrapper library
   PROTOC="${protobuf}/bin/protoc";
@@ -56,10 +58,10 @@ rustPlatform.buildRustPackage rec {
     ''}
   '';
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     description = "A high-performance logs, metrics, and events router";
     homepage    = "https://github.com/timberio/vector";
     license     = with licenses; [ asl20 ];
-    maintainers = with maintainers; [ thoughtpolice ];
+    maintainers = with maintainers; [ thoughtpolice happysalada ];
   };
 }

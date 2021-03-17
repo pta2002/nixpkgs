@@ -1,4 +1,5 @@
 {
+  bashInteractive,
   buildPackages,
   cacert,
   callPackage,
@@ -15,25 +16,24 @@
   moreutils,
   nix,
   pigz,
-  referencesByPopularity,
   rsync,
   runCommand,
   runtimeShell,
   shadow,
   skopeo,
-  stdenv,
   storeDir ? builtins.storeDir,
   substituteAll,
   symlinkJoin,
-  utillinux,
+  util-linux,
   vmTools,
   writeReferencesToFile,
   writeScript,
   writeText,
+  writeTextDir,
   writePython3,
+  system,  # Note: This is the cross system we're compiling for
 }:
 
-# WARNING: this API is unstable and may be subject to backwards-incompatible changes in the future.
 let
 
   mkDbExtraCommand = contents: let
@@ -48,7 +48,7 @@ let
     # A user is required by nix
     # https://github.com/NixOS/nix/blob/9348f9291e5d9e4ba3c4347ea1b235640f54fd79/src/libutil/util.cc#L478
     export USER=nobody
-    ${nix}/bin/nix-store --load-db < ${closureInfo {rootPaths = contentsList;}}/registration
+    ${buildPackages.nix}/bin/nix-store --load-db < ${closureInfo {rootPaths = contentsList;}}/registration
 
     mkdir -p nix/var/nix/gcroots/docker/
     for i in ${lib.concatStringsSep " " contentsList}; do
@@ -56,11 +56,18 @@ let
     done;
   '';
 
+  # The OCI Image specification recommends that configurations use values listed
+  # in the Go Language document for GOARCH.
+  # Reference: https://github.com/opencontainers/image-spec/blob/master/config.md#properties
+  # For the mapping from Nixpkgs system parameters to GOARCH, we can reuse the
+  # mapping from the go package.
+  defaultArch = go.GOARCH;
+
 in
 rec {
 
   examples = callPackage ./examples.nix {
-    inherit buildImage pullImage shadowSetup buildImageWithNixDb;
+    inherit buildImage buildLayeredImage fakeNss pullImage shadowSetup buildImageWithNixDb;
   };
 
   pullImage = let
@@ -72,7 +79,7 @@ rec {
     , imageDigest
     , sha256
     , os ? "linux"
-    , arch ? buildPackages.go.GOARCH
+    , arch ? defaultArch
 
       # This is used to set name to the pulled image
     , finalImageName ? imageName
@@ -86,7 +93,7 @@ rec {
       inherit imageDigest;
       imageName = finalImageName;
       imageTag = finalImageTag;
-      impureEnvVars = stdenv.lib.fetchers.proxyImpureEnvVars;
+      impureEnvVars = lib.fetchers.proxyImpureEnvVars;
       outputHashMode = "flat";
       outputHashAlgo = "sha256";
       outputHash = sha256;
@@ -101,7 +108,7 @@ rec {
     '';
 
   # We need to sum layer.tar, not a directory, hence tarsum instead of nix-hash.
-  # And we cannot untar it, because then we cannot preserve permissions ecc.
+  # And we cannot untar it, because then we cannot preserve permissions etc.
   tarsum = runCommand "tarsum" {
     nativeBuildInputs = [ go ];
   } ''
@@ -112,7 +119,7 @@ rec {
     export GOPATH=$(pwd)
     export GOCACHE="$TMPDIR/go-cache"
     mkdir -p src/github.com/docker/docker/pkg
-    ln -sT ${docker.src}/components/engine/pkg/tarsum src/github.com/docker/docker/pkg/tarsum
+    ln -sT ${docker.moby-src}/pkg/tarsum src/github.com/docker/docker/pkg/tarsum
     go build
 
     mkdir -p $out/bin
@@ -194,7 +201,7 @@ rec {
         };
         inherit fromImage fromImageName fromImageTag;
 
-        nativeBuildInputs = [ utillinux e2fsprogs jshon rsync jq ];
+        nativeBuildInputs = [ util-linux e2fsprogs jshon rsync jq ];
       } ''
       mkdir disk
       mkfs /dev/${vmTools.hd}
@@ -440,10 +447,10 @@ rec {
     let
       stream = streamLayeredImage args;
     in
-      runCommand "${name}.tar.gz" {
+      runCommand "${baseNameOf name}.tar.gz" {
         inherit (stream) imageName;
         passthru = { inherit (stream) imageTag; };
-        buildInputs = [ pigz ];
+        nativeBuildInputs = [ pigz ];
       } "${stream} | pigz -nT > $out";
 
   # 1. extract the base image
@@ -488,7 +495,7 @@ rec {
       baseJson = let
           pure = writeText "${baseName}-config.json" (builtins.toJSON {
             inherit created config;
-            architecture = buildPackages.go.GOARCH;
+            architecture = defaultArch;
             os = "linux";
           });
           impure = runCommand "${baseName}-config.json"
@@ -511,9 +518,9 @@ rec {
         };
       result = runCommand "docker-image-${baseName}.tar.gz" {
         nativeBuildInputs = [ jshon pigz coreutils findutils jq moreutils ];
-        # Image name and tag must be lowercase
+        # Image name must be lowercase
         imageName = lib.toLower name;
-        imageTag = if tag == null then "" else lib.toLower tag;
+        imageTag = if tag == null then "" else tag;
         inherit fromImage baseJson;
         layerClosure = writeReferencesToFile layer;
         passthru.buildArgs = args;
@@ -674,6 +681,33 @@ rec {
     in
     result;
 
+  # Provide a /etc/passwd and /etc/group that contain root and nobody.
+  # Useful when packaging binaries that insist on using nss to look up
+  # username/groups (like nginx).
+  # /bin/sh is fine to not exist, and provided by another shim.
+  fakeNss = symlinkJoin {
+    name = "fake-nss";
+    paths = [
+      (writeTextDir "etc/passwd" ''
+        root:x:0:0:root user:/var/empty:/bin/sh
+        nobody:x:65534:65534:nobody:/var/empty:/bin/sh
+      '')
+      (writeTextDir "etc/group" ''
+        root:x:0:
+        nobody:x:65534:
+      '')
+      (runCommand "var-empty" {} ''
+        mkdir -p $out/var/empty
+      '')
+    ];
+  };
+
+  # This provides /bin/sh, pointing to bashInteractive.
+  binSh = runCommand "bin-sh" {} ''
+    mkdir -p $out/bin
+    ln -s ${bashInteractive}/bin/bash $out/bin/sh
+  '';
+
   # Build an image and populate its nix database with the provided
   # contents. The main purpose is to be able to use nix commands in
   # the container.
@@ -712,10 +746,12 @@ rec {
       (lib.assertMsg (maxLayers > 1)
       "the maxLayers argument of dockerTools.buildLayeredImage function must be greather than 1 (current value: ${toString maxLayers})");
     let
+      baseName = baseNameOf name;
+
       streamScript = writePython3 "stream" {} ./stream_layered_image.py;
-      baseJson = writeText "${name}-base.json" (builtins.toJSON {
+      baseJson = writeText "${baseName}-base.json" (builtins.toJSON {
          inherit config;
-         architecture = buildPackages.go.GOARCH;
+         architecture = defaultArch;
          os = "linux";
       });
 
@@ -725,7 +761,7 @@ rec {
       # things like permissions set on 'extraCommands' are not overriden
       # by Nix. Then we precompute the sha256 for performance.
       customisationLayer = symlinkJoin {
-        name = "${name}-customisation-layer";
+        name = "${baseName}-customisation-layer";
         paths = contentsList;
         inherit extraCommands;
         postBuild = ''
@@ -735,6 +771,7 @@ rec {
           mkdir $out
 
           tar \
+            --sort name \
             --owner 0 --group 0 --mtime "@$SOURCE_DATE_EPOCH" \
             --hard-dereference \
             -C old_out \
@@ -753,7 +790,7 @@ rec {
       # so they'll be excluded from the created images.
       unnecessaryDrvs = [ baseJson overallClosure ];
 
-      conf = runCommand "${name}-conf.json" {
+      conf = runCommand "${baseName}-conf.json" {
         inherit maxLayers created;
         imageName = lib.toLower name;
         passthru.imageTag =
@@ -761,8 +798,8 @@ rec {
             then tag
             else
               lib.head (lib.strings.splitString "-" (baseNameOf conf.outPath));
-        paths = referencesByPopularity overallClosure;
-        buildInputs = [ jq ];
+        paths = buildPackages.referencesByPopularity overallClosure;
+        nativeBuildInputs = [ jq ];
       } ''
         ${if (tag == null) then ''
           outName="$(basename "$out")"
@@ -806,18 +843,20 @@ rec {
 
         cat ${baseJson} | jq '
           . + {
+            "store_dir": $store_dir,
             "store_layers": $store_layers,
             "customisation_layer", $customisation_layer,
             "repo_tag": $repo_tag,
             "created": $created
           }
-          ' --argjson store_layers "$store_layers" \
+          ' --arg store_dir "${storeDir}" \
+            --argjson store_layers "$store_layers" \
             --arg customisation_layer ${customisationLayer} \
             --arg repo_tag "$imageName:$imageTag" \
             --arg created "$created" |
           tee $out
       '';
-      result = runCommand "stream-${name}" {
+      result = runCommand "stream-${baseName}" {
         inherit (conf) imageName;
         passthru = {
           inherit (conf) imageTag;
@@ -826,7 +865,7 @@ rec {
           # take images can know in advance how the image is supposed to be used.
           isExe = true;
         };
-        buildInputs = [ makeWrapper ];
+        nativeBuildInputs = [ makeWrapper ];
       } ''
         makeWrapper ${streamScript} $out --add-flags ${conf}
       '';
